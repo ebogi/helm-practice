@@ -1,4 +1,4 @@
-# Fix template to use labels correctly to be a valid k8s resourece
+# Fix template to use labels correctly to be a valid k8s resource
 #
 # Use toJson, toYaml and indent functions
 apiVersion: autoscaling/v1
@@ -6,7 +6,7 @@ kind: HorizontalPodAutoscaler
 metadata:
   name: myhpa
   labels:
-    {{ $.Values.labels  }}
+{{ $.Values.labels | toYaml | indent 4 }}
 spec:
   maxReplicas: 2
   minReplicas: 1

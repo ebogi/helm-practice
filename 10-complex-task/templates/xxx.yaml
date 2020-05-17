@@ -1,34 +1,54 @@
+# INCOMPLETE
+
 # Read the values.yaml for instructions this time
 # use the ones below as an example on how the output should look like
+{{ range $.Values.services -}}
+{{ $ports := default (list (dict "name" "api" "port" 8080)) .ports -}}
 apiVersion: v1
 kind: Service
 metadata:
-  name: cps-cache-service
+  name: {{ .name }}
 spec:
   ports:
-  - name: svc
-    port: 8282
-    targetPort: 8383
+  {{ range $ports }}
+  - name: {{ .name }}
+    port: {{ .port }}
+    targetPort: {{ .port }}
+  {{ end -}}
+  {{ $selector := default (dict "app" .name) .selector -}}
   selector:
+  {{ $selector | toYaml | indent 4 -}}
     app: cps-cache-service
   type: NodePort
+  {{ $ingress := default .ingress dict -}}
+  {{ if $ingress.enabled }}
 ---
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
   annotations:
     alb.ingress.kubernetes.io/backend-protocol: HTTP
+    {{ if .ingress.external -}}
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 43}]' # 443 for https
+    alb.ingress.kubernetes.io/scheme: external # external for https
+    {{ else -}}
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}]' # 443 for https
     alb.ingress.kubernetes.io/scheme: internal # external for https
+    {{ end -}}
     alb.ingress.kubernetes.io/target-type: instance
     kubernetes.io/ingress.class: alb
-  name: cps-cache-service
+  name: {{ .name }}
 spec:
   rules:
-  - host: svc.service.internal
+  {{ $serviceConfig := . -}}
+  {{ range $ports -}}
+  - host: {{ .name }} . {{ $serviceConfig.name }} .internal
     http:
       paths:
       - backend:
-          serviceName: cps-cache-service
-          servicePort: svc
+          serviceName: {{ $serviceConfig.name }}
+          servicePort: {{ .name }}
         path: /*
+  {{ end -}}
+{{ end -}}
+{{ end -}}
